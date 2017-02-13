@@ -264,15 +264,22 @@ func (s *Session) recvLoop() {
 }
 
 func (s *Session) keepalive() {
-	tickerPing := time.NewTicker(s.config.KeepAliveInterval)
-	tickerTimeout := time.NewTicker(s.config.KeepAliveTimeout)
-	defer tickerPing.Stop()
-	defer tickerTimeout.Stop()
-	for {
+	go func() {
+		tickerPing := time.NewTicker(s.config.KeepAliveInterval)
+		defer tickerPing.Stop()
 		select {
 		case <-tickerPing.C:
 			s.writeFrame(newFrame(cmdNOP, 0))
 			s.bucketCond.Signal() // force a signal to the recvLoop
+		case <-s.die:
+			return
+		}
+	}()
+	
+	tickerTimeout := time.NewTicker(s.config.KeepAliveTimeout)
+	defer tickerTimeout.Stop()
+	for {
+		select {
 		case <-tickerTimeout.C:
 			if !atomic.CompareAndSwapInt32(&s.dataReady, 1, 0) {
 				s.Close()
