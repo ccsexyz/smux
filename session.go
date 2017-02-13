@@ -267,15 +267,17 @@ func (s *Session) keepalive() {
 	go func() {
 		tickerPing := time.NewTicker(s.config.KeepAliveInterval)
 		defer tickerPing.Stop()
-		select {
-		case <-tickerPing.C:
-			s.writeFrame(newFrame(cmdNOP, 0))
-			s.bucketCond.Signal() // force a signal to the recvLoop
-		case <-s.die:
-			return
+		for {
+			select {
+			case <-tickerPing.C:
+				s.writeFrame(newFrame(cmdNOP, 0))
+				s.bucketCond.Signal() // force a signal to the recvLoop
+			case <-s.die:
+				return
+			}
 		}
 	}()
-	
+
 	tickerTimeout := time.NewTicker(s.config.KeepAliveTimeout)
 	defer tickerTimeout.Stop()
 	for {
