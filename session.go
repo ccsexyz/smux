@@ -282,6 +282,8 @@ func (s *Session) recvLoop() {
 }
 
 func (s *Session) keepalive() {
+	defer s.Close()
+
 	go func() {
 		tickerPing := time.NewTicker(s.config.KeepAliveInterval)
 		defer tickerPing.Stop()
@@ -298,11 +300,16 @@ func (s *Session) keepalive() {
 
 	tickerTimeout := time.NewTicker(s.config.KeepAliveTimeout)
 	defer tickerTimeout.Stop()
+	lasttimeout := time.Now()
 	for {
 		select {
 		case <-tickerTimeout.C:
+			now := time.Now().Round(0)
+			if lasttimeout.Add(time.Second + s.config.KeepAliveTimeout).Before(now) {
+				return
+			}
+			lasttimeout = now
 			if !atomic.CompareAndSwapInt32(&s.dataReady, 1, 0) {
-				s.Close()
 				return
 			}
 		case <-s.die:
