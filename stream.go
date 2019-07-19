@@ -122,6 +122,10 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 
 // Close implements net.Conn
 func (s *Stream) Close() error {
+	if s == nil {
+		return nil
+	}
+
 	s.dieLock.Lock()
 
 	select {
